@@ -59,7 +59,7 @@ Module_EXPORT char XMLModuleDescription[] =
 "      <flag>b</flag>\n"
 "      <label>Max radius</label>\n"
 "      <description><![CDATA[Maximum width expected for the border that marks off the region of interest]]></description>\n"
-"      <default>6</default>\n"
+"      <default>5</default>\n"
 "    </integer>\n"
 "    <integer>\n"
 "      <name>minrad</name>\n"
@@ -67,7 +67,7 @@ Module_EXPORT char XMLModuleDescription[] =
 "      <flag>a</flag>\n"
 "      <label>Min radius</label>\n"
 "      <description><![CDATA[Minimum width expected for the border that marks off the region of interest]]></description>\n"
-"      <default>4</default>\n"
+"      <default>3</default>\n"
 "    </integer>\n"
 "    <integer>\n"
 "      <name>lowerthreshold</name>\n"
@@ -115,7 +115,7 @@ Module_EXPORT char XMLModuleDescription[] =
 "      <flag>w</flag>\n"
 "      <label>Y end</label>\n"
 "      <description><![CDATA[Vertical pixel position from where the region of interest finishes]]></description>\n"
-"      <default>210</default>\n"
+"      <default>280</default>\n"
 "    </integer>\n"
 "    <integer>\n"
 "      <name>ncircles</name>\n"
@@ -123,7 +123,7 @@ Module_EXPORT char XMLModuleDescription[] =
 "      <flag>n</flag>\n"
 "      <label>Number of Circles</label>\n"
 "      <description><![CDATA[Number of circles expected to find if there is actually a recognisable border]]></description>\n"
-"      <default>20</default>\n"
+"      <default>5</default>\n"
 "    </integer>\n"
 "    <integer>\n"
 "      <name>nIts</name>\n"
@@ -237,15 +237,15 @@ char *GetXMLModuleDescription()
     }
 #define GENERATE_TCLAP_PARSE \
     int radius = 5; \
-	int maxrad = 6; \
-	int minrad = 4; \
+	int maxrad = 5; \
+	int minrad = 3; \
 	int upperthreshold = 250; \
 	int lowerthreshold = 120; \
 	int gC = 2; \
 	int bY = 20; \
 	int eX= 330; \
-	int eY= 210; \
-	int ncircles = 20; \
+	int eY= 280; \
+	int ncircles = 5; \
 	int nIts = 5; \
 	double conductance = 3.0; \
 	double timestep = 0.125; \

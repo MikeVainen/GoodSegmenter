@@ -35,6 +35,7 @@
 
 #include <itkVotingBinaryHoleFillingImageFilter.h>
 #include <itkCastImageFilter.h>
+#include <itkSigmoidImageFilter.h>
 
 #include "itkHoughTransform2DCirclesImageFilter.h"
 #include "itkMinimumMaximumImageCalculator.h"
@@ -294,27 +295,118 @@ elementoEstructurante.Begin(); iter != elementoEstructurante.End(); ++iter, j++)
   lus::contourDetection(finalMaskImage, eY);
 
   MaskIteratorType fmaskIt( finalMaskImage, desiredInputRegion);
-  maskIt.SetDirection(1);
+  fmaskIt.SetDirection(1);
   
   IteratorType outIt( outImage, desiredInputRegion ); 
-  inputIt.SetDirection(1);
+  outIt.SetDirection(1);
 
   for ( fmaskIt.GoToBegin(), outIt.GoToBegin() ; !fmaskIt.IsAtEnd();  ++fmaskIt, ++outIt )
     {
-		outIt.Set(fmaskIt.Get()); 
+
+
+		resultImage->SetPixel(fmaskIt.GetIndex(),fmaskIt.Get()/255*image->GetPixel(fmaskIt.GetIndex()));
+		outIt.Set(resultImage->GetPixel(fmaskIt.GetIndex()));
+
 		if(fmaskIt.IsAtEndOfLine()){
 			outIt.NextLine();
 			fmaskIt.NextLine();
 		}
    }
 
-  OutputImageType::RegionType outRegion = outImage->GetLargestPossibleRegion();
+  if(gC!=2){
+
+		thresholdFilter->SetLowerThreshold(90);
+		thresholdFilter->SetUpperThreshold(200);
+		thresholdFilter->SetInput(resultImage);
+		//thresholdFilter->SetOutsideValue(255);
+		//thresholdFilter->SetInsideValue(0);
+		thresholdFilter->Update();
+
+		resultImage = thresholdFilter->GetOutput();
+		if(gC==1){
+			filler->SetInput(resultImage);
+			filler->Update();
+			eroder->SetInput( filler->GetOutput());
+			eroder->Update();
+			gradMagnitude->SetInput(eroder->GetOutput());
+			caster->SetInput(gradMagnitude->GetOutput());
+
+			resultImage=eroder->GetOutput();
+
+			
+			
+		}
+		for ( outIt.GoToBegin() ; !outIt.IsAtEnd(); ++outIt )
+		{
+			//if(finalMaskImage->GetPixel(outIt.GetIndex())!=0) outIt.Set(resultImage->GetPixel(outIt.GetIndex())/255*image->GetPixel(outIt.GetIndex()));
+			if(finalMaskImage->GetPixel(outIt.GetIndex())!=0) outIt.Set(resultImage->GetPixel(outIt.GetIndex()));
+			if(outIt.IsAtEndOfLine()){
+				outIt.NextLine();
+			}
+		}
+
+		outImage = caster->GetOutput();
+
+		itk::SigmoidImageFilter<ImageType,ImageType>::Pointer sigmoid = itk::SigmoidImageFilter<ImageType,ImageType>::New();
+		sigmoid->SetOutputMinimum( 0 );
+		sigmoid->SetOutputMaximum( 255 );
+
+		typedef itk::HoughTransform2DCirclesImageFilter<OutputPixelType,AccumulatorPixelType> HoughTransformFilterType;
+		HoughTransformFilterType::Pointer houghFilter= HoughTransformFilterType::New();
+		houghFilter->SetInput(outImage);
+
+		houghFilter->SetNumberOfCircles( ncircles );
+		houghFilter->SetMinimumRadius(   minrad );
+		houghFilter->SetMaximumRadius(   maxrad );
+
+		houghFilter->Update();
+		AccumulatorImageType::Pointer localAccumulator = houghFilter->GetOutput();
+
+		HoughTransformFilterType::CirclesListType circles;
+		circles = houghFilter->GetCircles( ncircles );
 
 
 
-	writer->SetInput(outImage);
+		typedef HoughTransformFilterType::CirclesListType CirclesListType;
+		CirclesListType::const_iterator itCircles = circles.begin();
+		std::vector<ImageType::IndexType> origins (ncircles); 
+		int numCircles = 0;
+		int vlimit = 0;
 
-	writer->SetFileName( outputImage.c_str() );
+		while( itCircles != circles.end() )
+			{
+				
+			centerIndex[0] = (short int)((*itCircles)->GetObjectToParentTransform()->GetOffset()[0]);
+			centerIndex[1] = (short int)((*itCircles)->GetObjectToParentTransform()->GetOffset()[1]);
+
+			for(double angle = 0;angle <= 2*vnl_math::pi; angle += vnl_math::pi/60.0 )
+			{
+				localIndex[0] = (long int)((*itCircles)->GetObjectToParentTransform()->GetOffset()[0] + (*itCircles)->GetRadius()[0]*std::cos(angle));
+				localIndex[1] = (long int)((*itCircles)->GetObjectToParentTransform()->GetOffset()[1] + (*itCircles)->GetRadius()[0]*std::sin(angle));
+				OutputImageType::RegionType outputRegion = outImage->GetLargestPossibleRegion();
+				if( outputRegion.IsInside( localIndex ) ){
+					outImage->SetPixel( localIndex, 255 );
+				}
+			}
+	        
+			if(outImage->GetPixel(centerIndex)==0 && (*itCircles)->GetRadius()[0]>minrad ){
+				 outImage->SetPixel(centerIndex, 255);
+				 if(centerIndex[1]>vlimit) vlimit = centerIndex[1];
+				 
+			}	    
+			itCircles++;
+		}
+
+	}
+
+  
+
+
+
+
+  
+  writer->SetInput(outImage);
+  writer->SetFileName( outputImage.c_str() );
   
   //  Software Guide : BeginLatex
   //
@@ -795,6 +887,28 @@ namespace lus{
 		return 0;
 
 		
+
+	}
+
+	vector<vector<int>> createDiamondStructuringElement ( int side){
+
+		int i=0, j=0, NUM= side/2; 
+		//we design the int matrix that will be used to create de Structuring Element
+		vector<vector<int>> diamondStructure(NUM+NUM+1, vector<int>(NUM+NUM+1));
+ 
+		for(i=-NUM; i<=NUM; i++){
+			for(j=-NUM; j<=NUM; j++){
+				if( abs(i)+abs(j)<=NUM){
+					diamondStructure[NUM+i][NUM+j] = 1;
+				}
+				else { 
+					diamondStructure[NUM+i][NUM+j] = 0;
+				}
+			}
+		}
+
+		return diamondStructure;
+
 
 	}
 
